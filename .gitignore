@@ -1,3 +1,5 @@
 .idea/*
 ingestion/.idea/*
+api/.idea/*
 ./target/*
+api/target/*
