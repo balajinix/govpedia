@@ -9,6 +9,9 @@ import io.searchbox.client.JestClient;
 import io.searchbox.client.JestClientFactory;
 import io.searchbox.client.config.HttpClientConfig;
 import io.searchbox.indices.CreateIndex;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -70,18 +73,60 @@ public class TweetStream {
 
         */
         // read messages
-        for (int msgRead=0; msgRead < 10; msgRead++) {
+        JSONParser parser = new JSONParser();
+        for (int msgRead=0; msgRead < 100000; msgRead++) {
             if (twitterClient.isDone()) {
                 System.out.println("Client connection closed unexpectedly" + twitterClient.getExitEvent().getMessage());
                 break;
             }
 
             // now lets poll the queue
-            String msg = queue.poll(5, TimeUnit.SECONDS);
+            String msg = queue.poll(1, TimeUnit.SECONDS);
             if (msg == null) {
                 System.out.println("Did not receive message in 5 seconds");
             } else {
-                System.out.println(msg);
+                Object obj = null;
+                try {
+                    obj = parser.parse(msg);
+                } catch (ParseException e) {
+                    e.printStackTrace();
+                    continue;
+                }
+                try {
+                    JSONObject jsonObject = (JSONObject) obj;
+                    String lang = (String) jsonObject.get("lang");
+                    // we only want english tweets
+                    if (lang != null && !lang.equals("en")) {
+                        continue;
+                    }
+                    String text = (String) jsonObject.get("text");
+                    if (text == null) continue;
+                    if (!text.contains("CPBlr") &&
+                            !text.contains("Government") &&
+                            !text.contains("government") &&
+                            !text.contains(".gov.") &&
+                            !text.contains("PMOIndia")) {
+                        continue;
+                    }
+                    String doc = text;
+                    /*
+                    String id = (String) jsonObject.get("id_str");
+                    String userStr = (String) jsonObject.get("user");
+                    if (userStr == null) {
+                        continue;
+                    }
+                    JSONObject userObj = (JSONObject) parser.parse(userStr);
+
+                    String userId = (String) userObj.get("id_str");
+                    String screenName = (String) userObj.get("screen_name");
+
+                    String doc = text + " - @" + screenName + " ref: " + "http://twitter.com/" + screenName + "/" + id;
+                    */
+                    System.out.println(doc);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    continue;
+                }
             }
         }
 
